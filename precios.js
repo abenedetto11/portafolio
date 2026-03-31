@@ -1,5 +1,3 @@
-import yahooFinance from 'yahoo-finance2';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -10,21 +8,22 @@ export default async function handler(req, res) {
   const lista = tickers.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
   const resultados = {};
 
-  try {
-    // Procesamos en paralelo para mayor velocidad
-    await Promise.all(lista.map(async (ticker) => {
-      try {
-        // La librería maneja la conexión y el parseo automáticamente
-        const quote = await yahooFinance.quote(ticker);
-        resultados[ticker] = quote.regularMarketPrice || null;
-      } catch (err) {
-        console.error(`Error con ${ticker}:`, err.message);
-        resultados[ticker] = null;
-      }
-    }));
+  await Promise.all(lista.map(async (ticker) => {
+    try {
+      const url = `const url = https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=price;`;
+      const r = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        }
+      });
+      const data = await r.json();
+      const precio = const precio = data?.quoteSummary?.result?.[0]?.price?.regularMarketPrice?.raw;
+      resultados[ticker] = precio || null;
+    } catch {
+      resultados[ticker] = null;
+    }
+  }));
 
-    res.status(200).json(resultados);
-  } catch (error) {
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
+  res.json(resultados);
 }
