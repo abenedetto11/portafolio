@@ -692,9 +692,9 @@ function guardarEnStorage() {
 }
 
 function tickerYahoo(pos) {
-  var t = pos.ticker.toUpperCase();
-  if (pos.tipo === 'cedear' && !t.endsWith('.BA')) return t + '.BA';
-  return t;
+  let t = pos.ticker.trim().toUpperCase();
+  if (t.includes('.')) return t;
+  return t + '.BA'; // Agregamos .BA por defecto para Merval/CEDEAR
 }
 
 async function actualizarPrecios() {
@@ -768,7 +768,8 @@ function renderTabla() {
 
   filtradas.forEach(function(pos) {
     var idxReal = posiciones.indexOf(pos);
-    var pActual = precios[tickerYahoo(pos)];
+    var dataResponse = precios[tickerYahoo(pos)];
+    var pActual = (dataResponse && dataResponse.precio) ? dataResponse.precio : null;
     var invertido = pos.cantidad * pos.precioCompra;
     var valor = (pActual != null) ? pos.cantidad * pActual : null;
     var ganancia = (valor !== null) ? valor - invertido : null;
