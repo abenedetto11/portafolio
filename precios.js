@@ -8,42 +8,50 @@ export default async function handler(req, res) {
   const lista = tickers.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
   const resultados = {};
 
+  let cotizacionMEP = null;
   try {
-    // 1. Obtenemos la cotización del dólar MEP/CCL para la conversión
     const resDolar = await fetch('https://dolarapi.com/v1/dolares/bolsa');
     const datosDolar = await resDolar.json();
-    const cotizacionMEP = datosDolar.compra; // Usamos el valor de compra para valuar activos
-
-    // 2. Buscamos los precios en Yahoo
-    await Promise.all(lista.map(async (ticker) => {
-      try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
-        const r = await fetch(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        const data = await r.json();
-        const meta = data?.chart?.result?.[0]?.meta;
-        let precio = meta?.regularMarketPrice;
-        let moneda = meta?.currency;
-
-        // 3. Lógica de conversión automática
-        if (moneda === 'ARS' && precio) {
-          precio = precio / cotizacionMEP; // Convertimos de Pesos a USD
-          moneda = 'USD (convertido)';
-        }
-
-        resultados[ticker] = {
-          precio: precio || null,
-          moneda: moneda || (ticker.endsWith('D.BA') ? 'USD' : 'ARS'),
-          cotizacionDolar: cotizacionMEP
-        };
-      } catch {
-        resultados[ticker] = { precio: null, error: true };
-      }
-    }));
-
-    res.json(resultados);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener datos' });
+    cotizacionMEP = datosDolar.compra;
+  } catch {
+    cotizacionMEP = null;
   }
+
+  await Promise.all(lista.map(async (ticker) => {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+      const r = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        }
+      });
+      const data = await r.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      let precio = meta?.regularMarketPrice;
+      const moneda = meta?.currency;
+
+      if (!precio) {
+        resultados[ticker] = { precio: null, moneda: null };
+        return;
+      }
+
+      // Tickers .BA que NO terminan en D.BA cotizan en ARS → convertir a USD
+      // Ejemplos ARS: YPFD.BA, GGAL.BA, PAMP.BA
+      // Ejemplos USD: MELID.BA, GGALD.BA, PAMPAD.BA (ya en USD, no convertir)
+      const esARS = moneda === 'ARS';
+      if (esARS && cotizacionMEP) {
+        precio = precio / cotizacionMEP;
+      }
+
+      resultados[ticker] = {
+        precio: precio,
+        moneda: esARS ? 'USD (conv. MEP)' : moneda
+      };
+    } catch {
+      resultados[ticker] = { precio: null, error: true };
+    }
+  }));
+
+  res.json(resultados);
 }
