@@ -810,7 +810,8 @@ function actualizarResumen() {
   posiciones.forEach(function(pos) {
     var invertido = pos.cantidad * pos.precioCompra;
     totalInvertido += invertido;
-    var pActual = precios[tickerYahoo(pos)];
+    var resp = precios[tickerYahoo(pos)];
+    var pActual = (resp && resp.precio) ? resp.precio : null;
     if (pActual) {
       conPrecio++;
       var valor = pos.cantidad * pActual;
@@ -879,7 +880,8 @@ function renderGrafico() {
   }
 
   var datos = posiciones.map(function(pos) {
-    var pActual = precios[tickerYahoo(pos)];
+    var resp = precios[tickerYahoo(pos)];
+    var pActual = (resp && resp.precio) ? resp.precio : null;
     var valor = pActual ? pos.cantidad * pActual : pos.cantidad * pos.precioCompra;
     return { ticker: pos.ticker.toUpperCase(), valor: valor };
   });
